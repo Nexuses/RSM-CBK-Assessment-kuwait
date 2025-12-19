@@ -397,7 +397,7 @@ export function CybersecurityAssessmentForm() {
                       </div>
                       <div className="p-3 sm:p-4 bg-[#00AEEF]/5 rounded-lg border border-[#00AEEF]/20">
                         <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                          Scoring: Your total score will be calculated by summing the points from all your answers. Each 'Yes' answer earns 1 point, and each 'No' answer earns 0 points. The assessment will provide you with a cybersecurity maturity level based on your total score.
+                          Scoring: Your total score will be calculated by summing the points from all your answers. Each &apos;Yes&apos; answer earns 1 point, and each &apos;No&apos; answer earns 0 points. The assessment will provide you with a cybersecurity maturity level based on your total score.
                         </p>
                       </div>
                     </div>
@@ -405,7 +405,7 @@ export function CybersecurityAssessmentForm() {
                     <div className="pt-2 sm:pt-3">
                       <h3 className="text-base sm:text-lg font-semibold text-[#1b3a57] mb-3 sm:mb-4">Disclaimer</h3>
                       <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                        This assessment does not guarantee the detection of all existing or potential vulnerabilities, threats, or exploits. It reflects the organization's security posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.
+                        This assessment does not guarantee the detection of all existing or potential vulnerabilities, threats, or exploits. It reflects the organization&apos;s security posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.
                       </p>
                     </div>
                     <Button
@@ -415,7 +415,7 @@ export function CybersecurityAssessmentForm() {
                       Begin Assessment
                     </Button>
                     <p className="text-[10px] sm:text-xs text-gray-600 text-center px-2">
-                      By clicking "Begin Assessment", you agree to our{" "}
+                      By clicking &quot;Begin Assessment&quot;, you agree to our{" "}
                       <a
                         href="https://www.rsm.global/kuwait/privacy-notice"
                         target="_blank"
