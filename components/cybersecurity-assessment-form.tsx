@@ -37,8 +37,6 @@ import {
   FormLabel,
   FormMessage,
 } from "./ui/form";
-import ReactSpeedometer, {
-} from "react-d3-speedometer";
 import styles from "@/styles/CybersecurityAssessmentForm.module.css";
 import { questionsData, Question } from '@/lib/questions';
 
@@ -118,10 +116,7 @@ export function CybersecurityAssessmentForm() {
     firstName: z.string().min(2, { message: "Please enter a valid first name." }),
     lastName: z.string().min(2, { message: "Please enter a valid last name." }),
     email: z.string().email("Please enter a valid email address."),
-    phone: z
-      .string()
-      .min(7, { message: "Please enter a valid phone number." })
-      .max(20, { message: "Phone number is too long." }),
+    phone: z.string().max(20, { message: "Phone number is too long." }).optional(),
   });
 
   const consultationForm = useForm<z.infer<typeof consultationSchema>>({
@@ -133,6 +128,22 @@ export function CybersecurityAssessmentForm() {
       phone: "",
     },
   });
+
+  // Auto-fill consultation form when modal opens
+  useEffect(() => {
+    if (isConsultationModalOpen && personalInfo.name && personalInfo.email) {
+      const nameParts = personalInfo.name.trim().split(/\s+/);
+      const firstName = nameParts[0] || "";
+      const lastName = nameParts.slice(1).join(" ") || "";
+      
+      consultationForm.reset({
+        firstName: firstName,
+        lastName: lastName,
+        email: personalInfo.email,
+        phone: "",
+      });
+    }
+  }, [isConsultationModalOpen, personalInfo, consultationForm]);
 
   const handlePersonalInfoSubmit = (values: z.infer<typeof formSchema>) => {
     setPersonalInfo(values);
@@ -337,7 +348,7 @@ export function CybersecurityAssessmentForm() {
 
   if (currentQuestion === 0) {
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
         <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
           <Image
             src="https://22527425.fs1.hubspotusercontent-na2.net/hubfs/22527425/RSM%20Kuwait%20ESG/Frame%204%20(1).png"
@@ -354,15 +365,15 @@ export function CybersecurityAssessmentForm() {
               <Card className="rounded-3xl border-2 border-[#3F9C35] bg-white shadow-[0_25px_70px_rgba(2,48,89,0.12)]">
                   <CardHeader className="space-y-2 text-center relative px-4 sm:px-6 pt-4 sm:pt-6 pb-3 sm:pb-4">
                     <CardTitle className="text-xl sm:text-2xl md:text-3xl font-semibold text-[#1b3a57]">
-                      Assessment Guidance
+                      Assessment Instructions
                     </CardTitle>
                   </CardHeader>
                 <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6 pt-2">
                   <div className="space-y-4 sm:space-y-6">
                     {/* Instructions Section */}
                     <div className="border-b border-gray-200 pb-4 sm:pb-6">
-                      <h3 className="text-base sm:text-lg font-semibold text-[#1b3a57] mb-3 sm:mb-4">Instructions</h3>
-                      <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mb-4 sm:mb-6">
+                      {/* <h3 className="text-base sm:text-lg font-semibold text-[#1b3a57] mb-3 sm:mb-4">Instructions</h3> */}
+                      <p className="text-xs sm:text-sm text-gray-700 leading-relaxed mb-4 sm:mb-6 text-center">
                         This assessment consists of Yes/No questions. Each question has two answer options:
                       </p>
                       
@@ -397,7 +408,7 @@ export function CybersecurityAssessmentForm() {
                       </div>
                       <div className="p-3 sm:p-4 bg-[#00AEEF]/5 rounded-lg border border-[#00AEEF]/20">
                         <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                          Scoring: Your total score will be calculated by summing the points from all your answers. Each &apos;Yes&apos; answer earns 1 point, and each &apos;No&apos; answer earns 0 points. The assessment will provide you with a cybersecurity maturity level based on your total score.
+                          Scoring: Your total score will be calculated by summing the points from all your answers. Each &apos;Yes&apos; answer earns 1 point, and each &apos;No&apos; answer earns 0 points. The assessment will provide you with a compliance maturity level based on your total score.
                         </p>
                       </div>
                     </div>
@@ -405,7 +416,7 @@ export function CybersecurityAssessmentForm() {
                     <div className="pt-2 sm:pt-3">
                       <h3 className="text-base sm:text-lg font-semibold text-[#1b3a57] mb-3 sm:mb-4">Disclaimer</h3>
                       <p className="text-xs sm:text-sm text-gray-700 leading-relaxed">
-                        This assessment does not guarantee the detection of all existing or potential vulnerabilities, threats, or exploits. It reflects the organization&apos;s security posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.
+                        This is not a comprehensive CBK CORF assessment. This assessment only consists of about 15 questions to quickly assess a few key requirements of the CBK CORF. This assessment does not guarantee the detection of all existing or potential vulnerabilities and compliance gaps. It reflects the organization&apos;s compliance posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.
                       </p>
                     </div>
                     <Button
@@ -566,12 +577,24 @@ export function CybersecurityAssessmentForm() {
             )}
           </div>
         </section>
+        
+        {/* Bottom Right Image - Visible when scrolling to bottom */}
+        {/* <div className="absolute bottom-0 right-0 m-0 p-0 z-[-1]">
+          <Image
+            src="https://22527425.fs1.hubspotusercontent-na2.net/hubfs/22527425/RSM%20Kuwait%20ESG/Screenshot_2025-08-18_at_4.19.40_PM-removebg-preview.png"
+            alt="RSM Assessment Footer"
+            width={500}
+            height={400}
+            className="max-w-full h-auto mr[-100px] p-0"
+            style={{ margin: 0, padding: 0 }}
+          />
+        </div> */}
       </div>
     );
   }
 
   return (
-      <div className="min-h-screen">
+      <div className="min-h-screen relative">
       <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2">
         <Image
           src="https://22527425.fs1.hubspotusercontent-na2.net/hubfs/22527425/RSM%20Kuwait%20ESG/Frame%204%20(1).png"
@@ -705,155 +728,56 @@ export function CybersecurityAssessmentForm() {
               transition={{ duration: 0.4 }}
             >
               <Card className="rounded-3xl border-0 bg-white/95 backdrop-blur shadow-[0_25px_70px_rgba(3,32,66,0.25)]">
-                <CardHeader className="px-6 py-6 text-center">
-                  <CardTitle className="text-3xl font-semibold text-[#1b3a57]">
-                    Assessment Results
-                      </CardTitle>
-                    </CardHeader>
+                <CardHeader className="px-6 py-6">
+                  <div className="flex flex-col sm:flex-row items-center gap-4 relative">
+                    <div className="flex-1 hidden sm:block"></div>
+                    <CardTitle className="text-3xl font-semibold text-[#1b3a57] text-center flex-1">
+                      Assessment Results
+                    </CardTitle>
+                    <div className="flex-1 flex justify-end">
+                      <Button
+                        type="button"
+                        className="flex h-12 items-center justify-center gap-2 rounded-full border border-transparent bg-[#00AEEF] px-6 text-sm font-semibold text-white shadow-lg shadow-[#00AEEF]/30 transition-all hover:bg-[#0091cf] hover:shadow-xl"
+                        onClick={() => {
+                          setConsultationSuccess(false);
+                          setConsultationError(null);
+                          setIsConsultationModalOpen(true);
+                        }}
+                      >
+                        <Mail className="h-5 w-5" />
+                        <span className="whitespace-nowrap">Book Appointment</span>
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
                 <CardContent className={cn(styles.resultContainer, "px-6 pb-10 pt-2")}>
-                      <div className={styles.gaugeContainer}>
-                        <ReactSpeedometer
-                          value={animatedScore}
-                          minValue={0}
-                          maxValue={100}
-                          segments={4}
-                      segmentColors={["#ef4444", "#f97316", "#eab308", "#22c55e"]}
-                          currentValueText="${value}%"
-                          valueTextFontSize="38px"
-                          textColor="#1E293B"
-                          paddingHorizontal={30}
-                          paddingVertical={30}
-                          valueTextFontWeight="600"
-                          needleTransitionDuration={4000}
-                          needleColor="#1E293B"
-                          startColor="#ef4444"
-                          endColor="#22c55e"
-                          labelFontSize="14px"
-                          customSegmentLabels={[
-                            {
-                              text: "Critical",
-                              position: "INSIDE",
-                              color: "#1E293B",
-                              fontSize: "12px",
-                            },
-                            {
-                              text: "Poor",
-                              position: "INSIDE",
-                              color: "#1E293B",
-                              fontSize: "12px",
-                            },
-                            {
-                              text: "Fair",
-                              position: "INSIDE",
-                              color: "#1E293B",
-                              fontSize: "12px",
-                            },
-                            {
-                              text: "Good",
-                              position: "INSIDE",
-                              color: "#1E293B",
-                              fontSize: "12px",
-                            },
-                          ]}
-                          ringWidth={47}
-                          needleHeightRatio={0.7}
-                          customSegmentStops={[0, 35, 65, 85, 100]}
-                        />
-                      </div>
-                      
+
                       <motion.div
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.4, duration: 0.5 }}
-                        className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6 w-full"
+                        className="mt-8 px-6 py-5 text-center"
                       >
-                        <Button
-                          type="button"
-                          className="flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-transparent bg-[#00AEEF] px-6 text-sm font-semibold text-white shadow-lg shadow-[#00AEEF]/30 transition-all hover:bg-[#0091cf] hover:shadow-xl"
-                          onClick={() => {
-                            setConsultationSuccess(false);
-                            setConsultationError(null);
-                            setIsConsultationModalOpen(true);
-                          }}
-                        >
-                          <Mail className="h-5 w-5" />
-                          <span className="whitespace-nowrap">Book Appointment</span>
-                        </Button>
-                        <Button
-                      className="flex h-12 w-full sm:w-auto items-center justify-center gap-2 rounded-full border border-transparent bg-[#00AEEF] px-6 text-sm font-semibold text-white shadow-lg shadow-[#00AEEF]/30 transition-all hover:bg-[#0091cf] hover:shadow-xl"
-                          onClick={async () => {
-                            try {
-                              const response = await fetch("/api/generate-pdf", {
-                                method: "POST",
-                                headers: {
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                              personalInfo: {
-                                name: personalInfo.name,
-                                email: personalInfo.email,
-                                company: personalInfo.company,
-                                position: personalInfo.position,
-                              },
-                                  score: score || 0,
-                                  answers,
-                                  questions: questionsData,
-                                }),
-                              });
-
-                              if (!response.ok) {
-                                const errorData = await response.json();
-                                throw new Error(errorData.message || "Failed to generate PDF");
-                              }
-
-                              const blob = await response.blob();
-                              const url = window.URL.createObjectURL(blob);
-                              const link = document.createElement("a");
-                              link.href = url;
-                              link.download = `${personalInfo.company}_Cyber_Self_Assessment_Report.pdf`;
-                              document.body.appendChild(link);
-                              link.click();
-                              document.body.removeChild(link);
-                            } catch (error: unknown) {
-                              console.error("Error generating PDF:", error);
-                              if (error instanceof Error) {
-                                alert(`An error occurred while generating the PDF: ${error.message}`);
-                              } else {
-                                alert("An unknown error occurred");
-                              }
-                            }
-                          }}
-                        >
-                          <svg
-                        className="h-5 w-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth="2"
-                              d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                            ></path>
-                          </svg>
-                          <span className="whitespace-nowrap">Download Report</span>
-                        </Button>
+                        <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
+                          Thank you <span className="font-semibold text-[#1b3a57]">{personalInfo.name}</span> for taking time to conduct a CBK CORF Self-Assessment of your organization on <span className="font-semibold text-[#1b3a57]">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>. Based on your responses provided, the overall compliance maturity level based score for <span className="font-semibold text-[#1b3a57]">{personalInfo.company}</span> is <span className="font-semibold text-[#1b3a57]">{score || 0}</span> out of a total score of {TOTAL_QUESTIONS}.
+                        </p>
                       </motion.div>
 
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.6, duration: 0.5 }}
-                        className="mt-6 rounded-2xl border border-[#3F9C35]/30 bg-gradient-to-r from-[#f0fbf4] to-[#e6f5ed] px-6 py-5 text-center text-[#1b3a57]"
+                        className="mt-6 w-full"
                       >
-                        <p className="text-lg font-semibold text-[#1b3a57]">
-                          Thank you for completing the assessment! 🎉
-                        </p>
-                        <p className="mt-2 text-sm text-gray-700">
-                          Your assessment has been completed successfully. You can download your report or book a consultation with our team for further assistance.
-                        </p>
+                        <div className="border-2 border-[#00AEEF] rounded-lg p-2 w-full">
+                          <Image
+                            src="https://22527425.fs1.hubspotusercontent-na2.net/hubfs/22527425/RSM%20Kuwait%20ESG/PSD%2062.png"
+                            alt="RSM Assessment Image"
+                            width={1200}
+                            height={800}
+                            className="rounded-md w-full h-auto"
+                          />
+                        </div>
                       </motion.div>
 
                       {!isConsultationModalOpen && consultationSuccess && (
@@ -896,6 +820,20 @@ export function CybersecurityAssessmentForm() {
               </motion.div>
             )}
       </div>
+      
+      {/* Bottom Right Image - Visible when scrolling to bottom */}
+      {/* <div className="relative w-full m-0 p-0">
+        <div className="flex justify-end m-0 p-0">
+          <Image
+            src="https://22527425.fs1.hubspotusercontent-na2.net/hubfs/22527425/RSM%20Kuwait%20ESG/Screenshot_2025-08-18_at_4.19.40_PM-removebg-preview.png"
+            alt="RSM Assessment Footer"
+            width={500}
+            height={400}
+            className="max-w-full h-auto m-0 p-0"
+          />
+        </div>
+      </div> */}
+      
       <AnimatePresence>
         {isConsultationModalOpen && (
           <motion.div
@@ -1004,7 +942,7 @@ export function CybersecurityAssessmentForm() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel className="text-sm font-semibold text-[#1b3a57]">
-                                Phone Number <span className="text-red-500">*</span>
+                                Phone Number
                               </FormLabel>
                               <FormControl>
                                 <Input

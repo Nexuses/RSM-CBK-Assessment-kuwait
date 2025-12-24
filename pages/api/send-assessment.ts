@@ -4,6 +4,7 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, pdf, Image } from '@react-pdf/renderer';
 import { questionsData } from '@/lib/questions';
 import { google } from 'googleapis';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 // Define the structure of the request body
 interface AssessmentData {
@@ -397,6 +398,27 @@ const createStyles = () => StyleSheet.create({
     lineHeight: 1.2,
     fontStyle: 'italic',
   },
+  disclaimerSection: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#009CD9',
+    borderLeftStyle: 'solid',
+  },
+  disclaimerTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1b3a57',
+    marginBottom: 10,
+  },
+  disclaimerText: {
+    fontSize: 9,
+    color: '#757574',
+    lineHeight: 1.5,
+    textAlign: 'left',
+  },
 });
 
 // Helper function to generate PDF buffer
@@ -523,6 +545,16 @@ async function generatePDFBuffer(
               React.createElement(Text, { style: styles.scoreLabel }, "Assessment Score"),
               React.createElement(Text, { style: styles.scoreValue }, score.toString())
             )
+          ),
+
+          // Disclaimer Section
+          React.createElement(View, { style: styles.section },
+            React.createElement(View, { style: styles.disclaimerSection },
+              React.createElement(Text, { style: styles.disclaimerTitle }, "Disclaimer"),
+              React.createElement(Text, { style: styles.disclaimerText },
+                "This is not a comprehensive CBK CORF assessment. This assessment only consists of about 15 questions to quickly assess a few key requirements of the CBK CORF. This assessment does not guarantee the detection of all existing or potential vulnerabilities and compliance gaps. It reflects the organization's compliance posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results."
+              )
+            )
           )
         )
       )
@@ -584,23 +616,78 @@ function columnToLetter(column: number): string {
   return letter;
 }
 
+// Function to upload PDF to S3
+async function uploadPDFToS3(
+  pdfBuffer: Buffer,
+  companyName: string,
+  personalInfo: PersonalInfo
+): Promise<string | null> {
+  try {
+    // Check if S3 credentials are available
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.AWS_S3_BUCKET_NAME || !process.env.AWS_REGION) {
+      console.error('AWS S3 credentials or bucket name not configured');
+      return null;
+    }
+
+    // Initialize S3 client
+    const s3Client = new S3Client({
+      region: process.env.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+
+    // Generate a unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const sanitizedCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, '_');
+    const filename = `cbk-corf-assessments/${sanitizedCompanyName}_${timestamp}_${personalInfo.email.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+
+    // Upload to S3
+    const command = new PutObjectCommand({
+      Bucket: process.env.AWS_S3_BUCKET_NAME,
+      Key: filename,
+      Body: pdfBuffer,
+      ContentType: 'application/pdf',
+      ACL: 'private', // or 'public-read' if you want public access
+    });
+
+    await s3Client.send(command);
+
+    // Generate the S3 URL
+    const s3Url = `https://${process.env.AWS_S3_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${filename}`;
+    
+    console.log('Successfully uploaded PDF to S3:', s3Url);
+    console.log('S3 Upload - Bucket:', process.env.AWS_S3_BUCKET_NAME, 'Region:', process.env.AWS_REGION, 'Key:', filename);
+    return s3Url;
+  } catch (error: any) {
+    console.error('Error uploading PDF to S3:', error);
+    return null;
+  }
+}
+
 // Function to write assessment data to Google Sheets
 async function writeToGoogleSheets(
   personalInfo: PersonalInfo,
   answers: Record<string, string>,
-  score: number
+  score: number,
+  pdfS3Url?: string | null
 ) {
   try {
+    // Check if credentials are available
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS) {
+      console.error('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS environment variable is not set');
+      return;
+    }
+
     // Initialize Google Sheets API
     const auth = new google.auth.GoogleAuth({
-      credentials: process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS 
-        ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS)
-        : undefined,
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS),
       scopes: ['https://www.googleapis.com/auth/spreadsheets'],
     });
 
     const sheets = google.sheets({ version: 'v4', auth });
-    const spreadsheetId = '1PTQABx0jX010HDNT2b1aFflV5WfjZ6dCrvsdjZ0z3ME';
+    const spreadsheetId = '18RSFaMZJYXHwelMLU8e8lCcEm7WhrSt6dasonxKKjJw';
     const sheetName = 'Sheet1'; // Change if your sheet has a different name
 
     // Get current questions
@@ -614,6 +701,7 @@ async function writeToGoogleSheets(
       'Company',
       'Position',
       'Score',
+      'PDF S3 Link',
       ...currentQuestions.map(q => `Q${q.id.replace('q', '')} - ${q.text.substring(0, 50)}...`),
     ];
 
@@ -629,6 +717,7 @@ async function writeToGoogleSheets(
 
       // If no headers exist, add them
       if (!headerResponse.data.values || headerResponse.data.values.length === 0) {
+        console.log('No headers found, adding new headers');
         await sheets.spreadsheets.values.update({
           spreadsheetId,
           range: headerRange,
@@ -638,10 +727,14 @@ async function writeToGoogleSheets(
           },
         });
       } else {
-        // Update headers if they don't match (in case questions changed)
+        // Update headers if they don't match (in case questions changed or new columns added)
         const existingHeaders = headerResponse.data.values[0];
-        if (existingHeaders.length !== headers.length || 
-            JSON.stringify(existingHeaders) !== JSON.stringify(headers)) {
+        const headersMatch = existingHeaders.length === headers.length && 
+                             JSON.stringify(existingHeaders) === JSON.stringify(headers);
+        
+        if (!headersMatch) {
+          console.log('Headers mismatch detected. Existing:', existingHeaders.length, 'New:', headers.length);
+          console.log('Updating headers to include PDF S3 Link column');
           await sheets.spreadsheets.values.update({
             spreadsheetId,
             range: headerRange,
@@ -650,6 +743,8 @@ async function writeToGoogleSheets(
               values: [headers],
             },
           });
+        } else {
+          console.log('Headers match, no update needed');
         }
       }
     } catch (error) {
@@ -674,12 +769,16 @@ async function writeToGoogleSheets(
       personalInfo.company,
       personalInfo.position,
       score.toString(),
+      pdfS3Url || '',
       ...currentQuestions.map(q => {
         const answerValue = answers[q.id] || '';
         const answer = q.options.find(opt => opt.value === answerValue);
         return answer ? answer.label : '';
       }),
     ];
+
+    console.log('Writing to Google Sheets - PDF S3 URL:', pdfS3Url || 'Not available');
+    console.log('Row data length:', rowData.length, 'Headers length:', headers.length);
 
     // Append the new row
     await sheets.spreadsheets.values.append({
@@ -693,8 +792,13 @@ async function writeToGoogleSheets(
     });
 
     console.log('Successfully wrote assessment data to Google Sheets');
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error writing to Google Sheets:', error);
+    console.error('Error details:', {
+      message: error?.message,
+      code: error?.code,
+      response: error?.response?.data,
+    });
     // Don't throw error - we don't want to fail the email sending if sheets write fails
   }
 }
@@ -796,6 +900,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Generate PDF buffer
     const pdfBuffer = await generatePDFBuffer(personalInfo, score, answers);
 
+    // Upload PDF to S3
+    console.log('Starting S3 upload for company:', personalInfo.company);
+    const pdfS3Url = await uploadPDFToS3(pdfBuffer, personalInfo.company, personalInfo);
+    console.log('S3 upload result:', pdfS3Url ? 'Success' : 'Failed', pdfS3Url || '');
+
     // Prepare user email content with appointment booking information
     const userEmailContent = `
       <!DOCTYPE html>
@@ -830,7 +939,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             }
             .header {
-              background: linear-gradient(135deg, #009CD9 0%, #0077a3 100%);
+              background: #000922;
               padding: 40px 30px;
               text-align: center;
             }
@@ -986,7 +1095,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               <!-- Content -->
               <div class="content-section">
                 <p class="greeting">Dear ${personalInfo.name},</p>
-                <p class="body-text">Thank you for completing the Cybersecurity Self-Assessment. Please find your detailed assessment report attached to this email.</p>
+                <p class="body-text">
+                  We would like to thank you for your participation in completing the CBK Cyber and Operational Resilience Framework self-assessment questionnaire. This report is auto generated by the assessment platform, based solely on the responses provided by you. The results are shared as is, without validation, verification, or independent testing and review by our team.
+                </p>
+                <p class="body-text">
+                  We believe that this report will assist you in providing high level insights into your organization's CBK CORF compliance preparedness and provide areas for improvement as you continue your journey in adopting this framework launched on 3rd December 2025. This report is intended solely for the use of management and sharing should be limited only to authorized personnel in your organization.
+                </p>
+                <p class="body-text">
+                  Please do not hesitate to contact us if you have any questions or would like to schedule a session on the outcome of this report with our cybersecurity team.
+                </p>
                 
                 <!-- Attachment Note -->
                 <div class="attachment-note">
@@ -1019,7 +1136,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       from: process.env.FROM_EMAIL,
       to: personalInfo.email,
       replyTo: 'cybersecurity@rsm.com.kw',
-      subject: "CBK CORF Assessment by RSM in kuwait",
+      subject: `Abridged CBK CORF Self-Assessment Report – ${personalInfo.company}`,
       html: userEmailContent,
       attachments: [
         {
@@ -1039,7 +1156,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     })
 
     // Write assessment data to Google Sheets
-    await writeToGoogleSheets(personalInfo, answers, score);
+    await writeToGoogleSheets(personalInfo, answers, score, pdfS3Url);
 
     res.status(200).json({ message: 'Assessment results sent successfully' })
   } catch (error) {

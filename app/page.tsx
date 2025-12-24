@@ -1,4 +1,5 @@
 import dynamic from "next/dynamic";
+import Image from "next/image";
 
 const CybersecurityAssessmentForm = dynamic(
   () =>
@@ -12,6 +13,8 @@ export default function Page() {
   return (
     <main className="container mx-auto px-4 pb-8">
       <CybersecurityAssessmentForm />
+       {/* Bottom Right Image - Visible when scrolling to bottom */}
+     
     </main>
   );
 }

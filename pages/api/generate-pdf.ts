@@ -377,6 +377,27 @@ const createStyles = () => StyleSheet.create({
     opacity: 0.3,
     marginVertical: 8,
   },
+  disclaimerSection: {
+    marginTop: 20,
+    padding: 15,
+    backgroundColor: '#f8f9fa',
+    borderRadius: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#009CD9',
+    borderLeftStyle: 'solid',
+  },
+  disclaimerTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#1b3a57',
+    marginBottom: 10,
+  },
+  disclaimerText: {
+    fontSize: 9,
+    color: '#757574',
+    lineHeight: 1.5,
+    textAlign: 'left',
+  },
 });
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -527,6 +548,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               React.createElement(View, { style: styles.scoreContainer },
                 React.createElement(Text, { style: styles.scoreLabel }, "Assessment Score"),
                 React.createElement(Text, { style: styles.scoreValue }, score.toString())
+              )
+            ),
+
+            // Disclaimer Section
+            React.createElement(View, { style: styles.section },
+              React.createElement(View, { style: styles.disclaimerSection },
+                React.createElement(Text, { style: styles.disclaimerTitle }, "Disclaimer"),
+                React.createElement(Text, { style: styles.disclaimerText },
+                  "This is not a comprehensive CBK CORF assessment. This assessment only consists of about 15 questions to quickly assess a few key requirements of the CBK CORF. This assessment does not guarantee the detection of all existing or potential vulnerabilities and compliance gaps. It reflects the organization's compliance posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results."
+                )
               )
             )
           )

@@ -6,7 +6,7 @@ interface ConsultationPayload {
   firstName: string;
   lastName: string;
   email: string;
-  phone: string;
+  phone?: string;
   context?: {
     personalInfo?: {
       name: string;
@@ -18,7 +18,7 @@ interface ConsultationPayload {
   };
 }
 
-const spreadsheetId = process.env.GOOGLE_SHEET_ID || "1PTQABx0jX010HDNT2b1aFflV5WfjZ6dCrvsdjZ0z3ME";
+const spreadsheetId = process.env.GOOGLE_SHEET_ID || "18RSFaMZJYXHwelMLU8e8lCcEm7WhrSt6dasonxKKjJw";
 const sheetName = "Sheet2";
 
 const columnToLetter = (column: number) => {
@@ -35,10 +35,14 @@ const columnToLetter = (column: number) => {
 
 const appendToSheet = async (payload: ConsultationPayload) => {
   try {
+    // Check if credentials are available
+    if (!process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS) {
+      console.error('GOOGLE_SERVICE_ACCOUNT_CREDENTIALS environment variable is not set');
+      return;
+    }
+
     const auth = new google.auth.GoogleAuth({
-      credentials: process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS
-        ? JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS)
-        : undefined,
+      credentials: JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_CREDENTIALS),
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
 
@@ -75,7 +79,7 @@ const appendToSheet = async (payload: ConsultationPayload) => {
       payload.firstName,
       payload.lastName,
       payload.email,
-      payload.phone,
+      payload.phone || "",
       payload.context?.personalInfo?.company || "",
       payload.context?.score?.toString() || "",
     ];
@@ -87,8 +91,14 @@ const appendToSheet = async (payload: ConsultationPayload) => {
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: [row] },
     });
-  } catch (error) {
+    console.log('Successfully wrote consultation data to Google Sheets');
+  } catch (error: any) {
     console.error("Failed to write consultation request to Google Sheets:", error);
+    console.error("Error details:", {
+      message: error?.message,
+      code: error?.code,
+      response: error?.response?.data,
+    });
   }
 };
 
@@ -110,7 +120,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const { firstName, lastName, email, phone, context }: ConsultationPayload = req.body;
 
-  if (!firstName || !lastName || !email || !phone) {
+  if (!firstName || !lastName || !email) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
@@ -225,10 +235,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                   <th>Email</th>
                   <td>${email}</td>
                 </tr>
-                <tr>
+                ${phone ? `<tr>
                   <th>Phone</th>
                   <td>${phone}</td>
-                </tr>
+                </tr>` : ""}
                 ${
                   context?.personalInfo?.company
                     ? `<tr>
@@ -290,7 +300,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 </p>
                 <div class="cta">
                   <strong>Your Request Summary</strong>
-                  <p>${firstName} ${lastName} · ${email} · ${phone}</p>
+                  <p>${firstName} ${lastName} · ${email}${phone ? ` · ${phone}` : ""}</p>
                 </div>
                 <p style="margin-top:24px;">
                   If you need to add any more information, simply reply to this email and we will include it in your request.
@@ -321,7 +331,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       html: userHtml,
     });
 
-    await appendToSheet({ firstName, lastName, email, phone, context });
+    await appendToSheet({ firstName, lastName, email, phone: phone || "", context });
 
     return res.status(200).json({ message: "Consultation request submitted successfully." });
   } catch (error) {

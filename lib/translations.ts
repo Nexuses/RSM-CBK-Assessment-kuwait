@@ -67,7 +67,7 @@ export const translations = {
       closing: "Best regards,\nRSM MENA Team"
     },
     assessmentGuidance: {
-      title: "Assessment Guidance",
+      title: "Assessment Instructions",
       instructions: "Instructions",
       instructionsDescription: "This assessment consists of single-choice questions. Each question has four answer options, and each option is assigned points based on the maturity level of your organization's cybersecurity practices:",
       points: {
@@ -88,9 +88,9 @@ export const translations = {
           description: "No formal strategy or process exists"
         }
       },
-      scoring: "Scoring: Your total score will be calculated by summing the points from all your answers. The assessment will provide you with a cybersecurity maturity level based on your total score.",
+      scoring: "Scoring: Your total score will be calculated by summing the points from all your answers. The assessment will provide you with a compliance maturity level based on your total score.",
       disclaimer: "Disclaimer",
-      disclaimerText: "This assessment does not guarantee the detection of all existing or potential vulnerabilities, threats, or exploits. It reflects the organization's security posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.",
+      disclaimerText: "This is not a comprehensive CBK CORF assessment. This assessment only consists of about 15 questions to quickly assess a few key requirements of the CBK CORF. This assessment does not guarantee the detection of all existing or potential vulnerabilities and compliance gaps. It reflects the organization's compliance posture at the time of testing solely based on your responses to the assessment questions. The assessment report is intended solely for your internal use and must not be distributed, disclosed, or relied upon by third parties. RSM shall not be liable for any losses, damages, claims, or expenses arising from, or in connection with, the use of the assessment results.",
       beginAssessment: "Begin Assessment",
       agreeToTerms: "By clicking \"Begin Assessment\", you agree to our",
       privacyPolicy: "privacy policy",
